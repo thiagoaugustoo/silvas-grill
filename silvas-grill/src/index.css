@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+@theme {
+  /* Tons claros que transmitem tranquilidade e higiene */
+  --color-bg-base: #fdfbf7;      /* Off-white/creme suave */
+  --color-brand-green: #607d64;  /* Verde sálvia (frescor dos temperos) */
+  --color-brand-copper: #c87a53; /* Cobre/laranja suave (botões chamativos) */
+  --color-text-dark: #2d312e;    /* Grafite escuro para leitura confortável */
+}
