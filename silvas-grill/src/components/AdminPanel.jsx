@@ -18,9 +18,11 @@ export default function AdminPanel() {
   const [novoEventoTitulo, setNovoEventoTitulo] = useState('');
   const [novoEventoDescricao, setNovoEventoDescricao] = useState('');
   const [novoEventoImagem, setNovoEventoImagem] = useState('');
-
-  // NOVO: Estado da Configuração Global (Foto Principal)
+  // Estados da Configuração Global (Foto Principal e Ajuste Fino)
+  const [heroPosicao, setHeroPosicao] = useState('');
   const [heroImagem, setHeroImagem] = useState('');
+  const [posX, setPosX] = useState(50);
+  const [posY, setPosY] = useState(50);
 
   useEffect(() => {
     verificarAcesso();
@@ -34,28 +36,26 @@ export default function AdminPanel() {
   };
 
   const carregarDados = async () => {
-    const { data: dataServicos } = await supabase.from('servicos').select('*').order('created_at', { ascending: true });
-    if (dataServicos) setServicos(dataServicos);
-
-    const { data: dataConvidados } = await supabase.from('convidados').select('*').order('created_at', { ascending: true });
-    if (dataConvidados) setConvidados(dataConvidados);
-
-    const { data: dataDepoimentos } = await supabase.from('depoimentos').select('*').order('created_at', { ascending: false });
-    if (dataDepoimentos) setDepoimentos(dataDepoimentos);
+    // ... (mantenha os carregamentos dos outros itens aqui) ...
 
     const { data: dataEventos } = await supabase.from('eventos').select('*').order('created_at', { ascending: false });
     if (dataEventos) setEventos(dataEventos);
 
-    // Carrega a Configuração da Imagem Principal
+    // LENDO A CONFIGURAÇÃO GLOBAL COM PRECISÃO
     const { data: config } = await supabase.from('configuracoes').select('*').eq('id', 1).single();
-    if (config) setHeroImagem(config.hero_imagem);
-  };
-
-  const handleAdicionar = async (e, tabela, dados, resetStates) => {
-    e.preventDefault();
-    await supabase.from(tabela).insert([dados]);
-    resetStates();
-    carregarDados();
+    if (config) {
+      setHeroImagem(config.hero_imagem || '');
+      
+      // Se houver uma posição salva em porcentagem (ex: "45% 60%"), ele separa os números
+      if (config.hero_posicao && config.hero_posicao.includes('%')) {
+        const [x, y] = config.hero_posicao.match(/\d+/g) || [50, 50];
+        setPosX(Number(x));
+        setPosY(Number(y));
+      } else {
+        setPosX(50);
+        setPosY(50);
+      }
+    }
   };
 
   const handleRemover = async (tabela, id) => {
@@ -66,8 +66,12 @@ export default function AdminPanel() {
   // NOVO: Função para salvar a foto principal
   const handleSalvarConfig = async (e) => {
     e.preventDefault();
-    await supabase.from('configuracoes').upsert({ id: 1, hero_imagem: heroImagem });
-    alert('Imagem principal atualizada com sucesso!');
+    await supabase.from('configuracoes').upsert({ 
+      id: 1, 
+      hero_imagem: heroImagem,
+      hero_posicao: heroPosicao // Salva a posição
+    });
+    alert('Configurações da vitrine atualizadas com sucesso!');
   };
 
   const handleLogout = async () => {
@@ -86,22 +90,76 @@ export default function AdminPanel() {
       
       <main className="p-8 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8">
         
-        {/* BLOCO: CONFIGURAÇÕES GLOBAIS (NOVO) */}
+        {/* BLOCO: CONFIGURAÇÕES GLOBAIS */}
         <section className="bg-white p-6 rounded-lg shadow-sm md:col-span-2 border-t-4 border-blue-500">
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Configurações Globais</h2>
-          <form onSubmit={handleSalvarConfig} className="flex gap-4 items-end">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Link da Foto Principal do Site (Home)</label>
-              <input type="url" value={heroImagem} onChange={(e) => setHeroImagem(e.target.value)} required placeholder="Cole a URL da imagem aqui" className="w-full rounded-md border-gray-300 shadow-sm p-2 border focus:ring-blue-500" />
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Configurações da Vitrine Principal</h2>
+          
+          <form onSubmit={handleSalvarConfig} className="flex flex-col gap-6">
+            
+            <div className="flex-1 w-full">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Link da Foto Principal do Site</label>
+              <input type="url" value={heroImagem} onChange={(e) => setHeroImagem(e.target.value)} required placeholder="Cole a URL da imagem aqui" className="w-full rounded-md border-gray-300 shadow-sm p-3 border focus:ring-blue-500" />
             </div>
-            <button type="submit" className="bg-blue-600 text-white font-bold py-2 px-6 rounded-md hover:bg-blue-700 transition h-max">Salvar Imagem</button>
+
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              
+              {/* Controle Deslizante Milimétrico */}
+              <div className="w-full md:w-64 flex flex-col gap-4 bg-gray-50 p-4 rounded-md border">
+                <p className="block text-sm font-bold text-gray-700 text-center md:text-left">Ajuste Fino da Foto</p>
+
+                <div>
+                  <label className="flex justify-between text-xs font-medium text-gray-600 mb-2">
+                    <span>↔️ Horizontal</span>
+                    <span>{posX}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={posX}
+                    onChange={(e) => setPosX(e.target.value)}
+                    className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="flex justify-between text-xs font-medium text-gray-600 mb-2">
+                    <span>↕️ Vertical</span>
+                    <span>{posY}%</span>
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={posY}
+                    onChange={(e) => setPosY(e.target.value)}
+                    className="w-full h-2 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+              </div>
+
+              {/* Pré-visualização Instantânea */}
+              {heroImagem && (
+                <div className="flex-1 w-full">
+                  <p className="text-sm text-gray-500 mb-2">Como o cliente verá:</p>
+                  <div 
+                    className="w-full h-40 rounded-md border-2 border-gray-300 bg-no-repeat bg-cover shadow-sm transition-none"
+                    style={{ 
+                      backgroundImage: `url('${heroImagem}')`,
+                      backgroundPosition: `${posX}% ${posY}%` 
+                    }}
+                  ></div>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t mt-2">
+              <button type="submit" className="w-full md:w-auto bg-blue-600 text-white font-bold py-3 px-8 rounded-md hover:bg-blue-700 transition shadow-md">
+                Salvar Configurações
+              </button>
+            </div>
+
           </form>
-          {heroImagem && (
-            <div className="mt-4">
-              <p className="text-sm text-gray-500 mb-2">Pré-visualização:</p>
-              <img src={heroImagem} alt="Pré-visualização" className="w-full h-40 object-cover rounded-md border" />
-            </div>
-          )}
         </section>
 
         {/* BLOCO: EVENTOS */}
